@@ -29,7 +29,7 @@ type MultipartReader struct {
 	readers     []io.Reader
 	length      int64
 	multiReader io.Reader
-	readed      int64
+	count       int64
 }
 
 //NewMultipartReader creates new MultipartReader
@@ -60,7 +60,7 @@ func (mr *MultipartReader) AddReader(r io.Reader, length int64) {
 }
 
 //AddFormReader adds new reader as form part to MultipartReader
-func (mr *MultipartReader) AddFormReader(name, filename string, r io.Reader, length int64) {
+func (mr *MultipartReader) AddFormReader(r io.Reader, name, filename string, length int64) {
 	form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n\r\n", mr.Boundary, name, filename)
 	mr.AddReader(strings.NewReader(form), int64(len(form)))
 	mr.AddReader(r, length)
@@ -91,10 +91,11 @@ func (mr *MultipartReader) SetupHTTPRequest(req *http.Request) {
 //Read implements the Read method
 func (mr *MultipartReader) Read(p []byte) (n int, err error) {
 	n, err = mr.multiReader.Read(p)
-	atomic.AddInt64(&mr.readed, int64(n))
+	atomic.AddInt64(&mr.count, int64(n))
 	return n, err
 }
 
-func (mr *MultipartReader) Readed() int64 {
-	return atomic.LoadInt64(&mr.readed)
+//Count returns length of read data
+func (mr *MultipartReader) Count() int64 {
+	return atomic.LoadInt64(&mr.count)
 }
