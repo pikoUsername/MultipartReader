@@ -99,3 +99,7 @@ func (mr *MultipartReader) Read(p []byte) (n int, err error) {
 func (mr *MultipartReader) Count() int64 {
 	return atomic.LoadInt64(&mr.count)
 }
+
+func (mr *MultipartReader) ContentType() string {
+	return mr.contentType
+}
