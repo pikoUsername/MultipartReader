@@ -64,7 +64,7 @@ func (mr *MultipartReader) AddReader(r io.Reader, length int64) {
 }
 
 // AddFormReader adds new reader as form part to MultipartReader
-func (mr *MultipartReader) AddFormReader(r io.Reader, name, filename string, length int64) {
+func (mr *MultipartReader) WriteReader(name, filename string, length int64, r io.Reader) {
 	form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n\r\n", mr.boundary, name, filename)
 	mr.AddReader(strings.NewReader(form), int64(len(form)))
 	mr.AddReader(r, length)
@@ -72,7 +72,7 @@ func (mr *MultipartReader) AddFormReader(r io.Reader, name, filename string, len
 }
 
 // WriteFields writes multiple form fields to the multipart.Writer.
-func (m *MultipartReader) AddFields(fields map[string]string) error {
+func (m *MultipartReader) WriteFields(fields map[string]string) error {
 	var err error
 
 	for key, value := range fields {
@@ -86,15 +86,20 @@ func (m *MultipartReader) AddFields(fields map[string]string) error {
 }
 
 // AddFile adds new file to MultipartReader
-func (mr *MultipartReader) AddFile(file *os.File) (err error) {
-	fs, err := file.Stat()
+func (mr *MultipartReader) WriteFile(key, filename string) (err error) {
+	fs, err := os.Open(filename)
 	if err != nil {
-		return
+		return err
+	}
+
+	stat, err := fs.Stat()
+	if err != nil {
+		return err
 	}
 
 	form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n\r\n", mr.boundary, "file", fs.Name())
 	mr.AddReader(strings.NewReader(form), int64(len(form)))
-	mr.AddReader(file, fs.Size())
+	mr.AddReader(fs, stat.Size())
 	return
 }
 
@@ -116,6 +121,10 @@ func (mpr *MultipartReader) Read(p []byte) (n int, err error) {
 // Count returns length of read data
 func (mr *MultipartReader) Count() int64 {
 	return atomic.LoadInt64(&mr.count)
+}
+
+func (mr *MultipartReader) Boundary() string {
+	return mr.boundary
 }
 
 // ContentType returns contentType
