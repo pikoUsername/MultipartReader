@@ -31,22 +31,23 @@ type MultipartReader struct {
 
 // New creates new MultipartReader
 func New() (mr *MultipartReader) {
-	buf := bytes.NewBuffer(nil)
-	writer := multipart.NewWriter(buf)
+	mr = &MultipartReader{}
 
-	formBody := buf.String()
+	bodyReader := bytes.NewBuffer(nil)
+	writer := multipart.NewWriter(bodyReader)
+
 	formClose := "\r\n--" + writer.Boundary() + "--\r\n"
 
-	bodyReader := strings.NewReader(formBody)
-	closeReader := strings.NewReader(formClose)
+	closeReader := bytes.NewReader([]byte(formClose))
 
-	mr = &MultipartReader{
-		writer:      writer,
-		contentType: writer.FormDataContentType(),
-		boundary:    writer.Boundary(),
-		readers:     []io.Reader{bodyReader, closeReader},
-		length:      int64(len(formBody) + len(formClose)),
-	}
+	mr.writer = writer
+
+	mr.boundary = writer.Boundary()
+	mr.contentType = writer.FormDataContentType()
+	mr.length = int64(bodyReader.Len() + len(formClose))
+
+	mr.readers = []io.Reader{bodyReader, closeReader}
+
 	return
 }
 
@@ -64,7 +65,7 @@ func (mr *MultipartReader) AddReader(r io.Reader, length int64) {
 }
 
 // AddFormReader adds new reader as form part to MultipartReader
-func (mr *MultipartReader) WriteReader(name, filename string, length int64, r io.Reader) {
+func (mr *MultipartReader) AddFormReader(name, filename string, length int64, r io.Reader) {
 	form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n\r\n", mr.boundary, name, filename)
 	mr.AddReader(strings.NewReader(form), int64(len(form)))
 	mr.AddReader(r, length)
