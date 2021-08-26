@@ -92,6 +92,7 @@ func (mr *MultipartReader) WriteFile(key, filename string) (err error) {
 	if err != nil {
 		return err
 	}
+	defer fs.Close()
 
 	stat, err := fs.Stat()
 	if err != nil {
