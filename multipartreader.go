@@ -72,13 +72,39 @@ func (mr *MultipartReader) AddFormReader(name, filename string, length int64, r 
 	return
 }
 
-// WriteFields writes multiple form fields to the multipart.Writer.
-func (m *MultipartReader) WriteFields(fields map[string]string) error {
-	var err error
+// https://stackoverflow.com/questions/20205796/post-data-using-the-content-type-multipart-form-data
+func (mr *MultipartReader) AddValuesReader(values map[string]io.Reader) (err error) {
+	for key, r := range values {
+		var fw io.Writer
+		if x, ok := r.(io.Closer); ok {
+			defer x.Close()
+		}
+		if x, ok := r.(*os.File); ok {
+			if fw, err = mr.writer.CreateFormFile(key, x.Name()); err != nil {
+				return
+			}
+		} else {
+			if fw, err = mr.writer.CreateFormField(key); err != nil {
+				return
+			}
+		}
+		if _, err = io.Copy(fw, r); err != nil {
+			return err
+		}
 
+	}
+	return
+}
+
+// WriteFields writes multiple form fields to the multipart.Writer.
+func (mr *MultipartReader) WriteFields(fields map[string]string) error {
 	for key, value := range fields {
-		err = m.writer.WriteField(key, value)
+		b := strings.NewReader(value)
+		w, err := mr.writer.CreateFormField(key)
 		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(w, b); err != nil {
 			return err
 		}
 	}
@@ -118,6 +144,10 @@ func (mpr *MultipartReader) Read(p []byte) (n int, err error) {
 	n, err = mr.Read(p)
 	atomic.AddInt64(&mpr.count, int64(n))
 	return n, err
+}
+
+func (mpr *MultipartReader) Close() error {
+	return mpr.writer.Close()
 }
 
 // Count returns length of read data
