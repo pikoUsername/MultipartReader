@@ -61,14 +61,19 @@ func (w *MultipartReader) SetBoundary(boundary string) (err error) {
 func (mr *MultipartReader) AddReader(r io.Reader, length int64) {
 	i := len(mr.readers)
 	mr.readers = append(mr.readers[:i-1], r, mr.readers[i-1])
-	mr.length = mr.length + length
+	mr.length += length
 }
 
 // AddFormReader adds new reader as form part to MultipartReader
-func (mr *MultipartReader) AddFormReader(name, filename string, length int64, r io.Reader) {
-	form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n\r\n", mr.boundary, name, filename)
-	mr.AddReader(strings.NewReader(form), int64(len(form)))
-	mr.AddReader(r, length)
+func (mr *MultipartReader) AddFormReader(name, filename string, length int64, r io.Reader) (err error) {
+	var fw io.Writer
+	if fw, err = mr.writer.CreateFormFile(name, filename); err != nil {
+		return
+	}
+	if _, err = io.Copy(fw, r); err != nil {
+		return
+	}
+	mr.length += length
 	return
 }
 
@@ -79,7 +84,7 @@ func (mr *MultipartReader) WriteFields(fields map[string]string) error {
 	for key, value := range fields {
 		form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n", mr.boundary, key)
 		mr.AddReader(strings.NewReader(form), (int64)(len(form)))
-		mr.AddReader(strings.NewReader(value), (int64)(len(value)))
+		mr.AddReader(strings.NewReader(value+"\n"), (int64)(len(value)))
 	}
 
 	return nil
@@ -130,6 +135,10 @@ func (mr *MultipartReader) Count() int64 {
 
 func (mr *MultipartReader) Boundary() string {
 	return mr.boundary
+}
+
+func (mr *MultipartReader) Length() int64 {
+	return mr.length
 }
 
 // ContentType returns contentType
