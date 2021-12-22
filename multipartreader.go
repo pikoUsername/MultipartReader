@@ -73,40 +73,13 @@ func (mr *MultipartReader) AddFormReader(name, filename string, length int64, r 
 }
 
 // https://stackoverflow.com/questions/20205796/post-data-using-the-content-type-multipart-form-data
-func (mr *MultipartReader) AddValuesReader(values map[string]io.Reader) (err error) {
-	for key, r := range values {
-		var fw io.Writer
-		if x, ok := r.(io.Closer); ok {
-			defer x.Close()
-		}
-		if x, ok := r.(*os.File); ok {
-			if fw, err = mr.writer.CreateFormFile(key, x.Name()); err != nil {
-				return
-			}
-		} else {
-			if fw, err = mr.writer.CreateFormField(key); err != nil {
-				return
-			}
-		}
-		if _, err = io.Copy(fw, r); err != nil {
-			return err
-		}
-
-	}
-	return
-}
 
 // WriteFields writes multiple form fields to the multipart.Writer.
 func (mr *MultipartReader) WriteFields(fields map[string]string) error {
 	for key, value := range fields {
-		b := strings.NewReader(value)
-		w, err := mr.writer.CreateFormField(key)
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(w, b); err != nil {
-			return err
-		}
+		form := fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n", mr.boundary, key)
+		mr.AddReader(strings.NewReader(form), (int64)(len(form)))
+		mr.AddReader(strings.NewReader(value), (int64)(len(value)))
 	}
 
 	return nil
