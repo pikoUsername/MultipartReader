@@ -62,7 +62,7 @@ func (mr *MultipartReader) AddReader(r io.Reader) {
 }
 
 // AddFormReader adds new reader as form part to MultipartReader
-func (mr *MultipartReader) AddFormReader(name, filename string, r io.Reader) (err error) {
+func (mr *MultipartReader) AddFormReader(name, filename string, length int64, r io.Reader) (err error) {
 	var fw io.Writer
 	if fw, err = mr.writer.CreateFormFile(name, filename); err != nil {
 		return
