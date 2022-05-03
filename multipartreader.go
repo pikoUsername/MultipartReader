@@ -70,6 +70,7 @@ func (mr *MultipartReader) AddFormReader(name, filename string, r io.Reader) (er
 	if _, err = io.Copy(fw, r); err != nil {
 		return
 	}
+	mr.length += length
 	return
 }
 
